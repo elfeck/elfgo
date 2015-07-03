@@ -1,0 +1,10 @@
+elfgo
+===============================================================================
+A very tiny Go/Baduk player based on Raphael (SVG, non-canvas) with sgf
+support.
+
+I did this mainly to use it on my website http://elfeck.com and because
+https://github.com/jkk/eidogo seems to be no longer maintained and quite
+bulky.
+
+This JS code is a hack and horrible. Usage might lead to injury.
