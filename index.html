@@ -17,23 +17,61 @@
    }
    body {
      width: 800px;
+     height: 100%;
      margin-left: auto;
      margin-right: auto;
      margin-top: 20px;
      background-color: #dddddd;
    }
-   div#raphael-canvas {
+   div#board-canvas {
      display: inline-block;
      width: 401px;
      height: 401px;
      background-image: url("img/19_board.svg");
      margin-top: 20px;
      margin-left: 20px;
+     margin-bottom: 20px;
+   }
+   div#tree-canvas {
+     background-color: #fffcf6;
+     border-width: 2px;
+     border-style: solid;
+     border-color: black;
+     display: inline-block;
+     width: 341px;
+     height: 150px;
+   }
+   div#tool-canvas {
+     background-color: #fffcf6;
+     border-width: 2px;
+     border-style: solid;
+     border-color: black;
+     display: inline-block;
+     width: 341px;
+     height: 30px;
+     margin-top: 10px;
+     
+   }
+   div#all-container {
+     font-size: 0px;
+   }
+   div#side-container {
+     display: inline-block;
+     width: 369px;
+     margin-top: 20px;
+     margin-left: 10px;
+     vertical-align: top;
    }
   </style>
 </head>
 <html>
   <body>
-    <div id="raphael-canvas"></div>
+    <div id="all-container">
+      <div id="board-canvas"></div>
+      <div id="side-container">
+	<div id="tree-canvas"></div>
+	<div id="tool-canvas"></div>
+      </div>
+    </div>
   </body>
 </html>
