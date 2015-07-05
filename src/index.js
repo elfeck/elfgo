@@ -33,6 +33,7 @@ $(function() {
 	}
     }
 
+    addTools();
     drawTree();
 
     $("#board-canvas").on("mousemove", function(e) {
@@ -602,4 +603,42 @@ getNodeColor = function(node) {
     if(node.moves[0].color == 1) return "B";
     if(node.moves[0].color == 2) return "W";
     console.log("Color error");
+}
+
+addTools = function() {
+    var fst = '<div id="';
+    var snd = '" class="toolstool but buttonidle"></div>';
+    var snd2 = '" class="toolstool sel unselected"></div>';
+    $("#tools").append(fst + 'bpass' + snd);
+    $("#tools").append(fst + 'bbw' + snd);
+    $("#tools").append(fst + 'bbww' + snd);
+    $("#tools").append(fst + 'bfww' + snd);
+    $("#tools").append(fst + 'bfw' + snd);
+    $("#tools").append(fst + 'bshow' + snd);
+    $("#tools").
+	append(fst + 'tplay' + '" class="toolstool sel selected"></div>');
+    $("#tools").append(fst + 'tblack' + snd2);
+    $("#tools").append(fst + 'twhite' + snd2);
+    $("#tools").append(fst + 'talph' + snd2);
+    $("#tools").append(fst + 'tnum' + snd2);
+    $("#tools").append(fst + 'tcirc' + snd2);
+    $("#tools").append(fst + 'tquad' + snd2);
+    $("#tools").append(fst + 'ttri' + snd2);
+    $("#tools").append(fst + 'trem' + snd2);
+
+    $("#tools").children("div.but").each(function() {
+	registerButton($(this), toolButtonPress, this.id);
+    });
+    $("#tools").children("div.sel").each(function() {
+	registerSelectButton($(this), $("#tools").children("div.sel"),
+			     toolSelectPress, this.id);
+    });
+}
+
+toolButtonPress = function(buttonId) {
+    console.log(buttonId);
+}
+
+toolSelectPress = function(buttonId) {
+    console.log(buttonId);
 }

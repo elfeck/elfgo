@@ -11,10 +11,13 @@ Sgf:
 (*) Parse sgf to board/tree
 
 
+(*) Last played stone marking
 (*) Undo remove tree branch
 (*) Link to move in tree
 (*) Hover link to highlight
 (*) Show variation options like in eidogo
 (*) Name variations in the tree somehow
+(*) Adjustable stone/board color and size
+(*) Board completely in Raphael
 
 (*) Refactor the ugly-ass JS code

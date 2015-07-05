@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   version="1.1"
+   id="svg2"
+   viewBox="0 0 16 16"
+   height="16"
+   width="16">
+  <defs
+     id="defs4" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     transform="translate(0,-1036.3622)"
+     id="layer1">
+    <text
+       transform="scale(0.93151519,1.0735198)"
+       id="text5540"
+       y="979.96729"
+       x="6.9633169"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.62415504px;line-height:125%;font-family:Sans;-inkscape-font-specification:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.62415504px;font-family:Sans;-inkscape-font-specification:Sans"
+         y="979.96729"
+         x="6.9633169"
+         id="tspan5542" /></text>
+    <text
+       id="text5914"
+       y="1048.2086"
+       x="0.34843066"
+       style="font-style:normal;font-weight:normal;font-size:10.84889412px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="letter-spacing:-1.33333325px"
+         y="1048.2086"
+         x="0.34843066"
+         id="tspan5916">aA</tspan></text>
+    <flowRoot
+       transform="translate(0.99999998,0.82307992)"
+       style="font-style:normal;font-weight:normal;font-size:16.16011047px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       id="flowRoot5918"
+       xml:space="preserve"><flowRegion
+         id="flowRegion5920"><rect
+           y="-305.43597"
+           x="-4.1712356"
+           height="20.684942"
+           width="27.148987"
+           id="rect5922" /></flowRegion><flowPara
+         id="flowPara5924" /></flowRoot>    <flowRoot
+       transform="translate(0.99999998,0.82307992)"
+       style="font-style:normal;font-weight:normal;font-size:16.16011047px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       id="flowRoot5926"
+       xml:space="preserve"><flowRegion
+         id="flowRegion5928"><rect
+           y="-311.90002"
+           x="-6.7568536"
+           height="25.856178"
+           width="29.734606"
+           id="rect5930" /></flowRegion><flowPara
+         id="flowPara5932" /></flowRoot>  </g>
+</svg>

@@ -21,7 +21,7 @@ div#board-canvas {
     height: 401px;
     background-image: url("img/19_board.svg");
     margin-top: 20px;
-    margin-left: 20px;
+    margin-left: 12px;
     margin-bottom: 20px;
     cursor: pointer;
 }
@@ -31,18 +31,18 @@ div#tree-canvas {
     border-style: solid;
     border-color: #888888;
     display: inline-block;
-    width: 341px;
+    width: 361px;
     height: 150px;
     overflow: auto;
     cursor: pointer;
 }
-div#tool-canvas {
+div#tools {
     background-color: #fffcf6;
     border-width: 2px;
     border-style: solid;
     border-color: #888888;
     display: inline-block;
-    width: 341px;
+    width: 361px;
     height: 30px;
     margin-top: 5px;
 }
@@ -55,4 +55,99 @@ div#side-container {
     margin-top: 20px;
     margin-left: 10px;
     vertical-align: top;
+}
+div.toolstool {
+    display: inline-block;
+    width: 17px;
+    height: 17px;
+    margin-left: 1px;
+    margin-right: 1px;
+    margin-top: 5px;
+    background-color: white;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+div#bpass {
+    margin-left: 4px;
+    background-image: url("img/bpass.svg");
+}
+div#trem {
+    background-image: url("img/trem.svg");
+}
+div#talph {
+    background-image: url("img/talph.svg");
+}
+div#bbw {
+    background-image: url("img/bbw.svg");
+}
+div#bbww {
+    background-image: url("img/bbww.svg");
+}
+div#bfw {
+    background-image: url("img/bfw.svg");
+}
+div#bfww {
+    background-image: url("img/bfww.svg");
+}
+div#tblack {
+    background-image: url("img/tblack.svg");
+}
+div#twhite {
+    background-image: url("img/twhite.svg");
+}
+div#tnum {
+    background-image: url("img/tnum.svg");
+}
+div#tcirc {
+    background-image: url("img/tcirc.svg");
+}
+div#ttri {
+    background-image: url("img/ttri.svg");
+}
+div#tquad {
+    background-image: url("img/tquad.svg");
+}
+div#tplay {
+    margin-left: 10px;
+    background-image: url("img/tplay.svg");
+}
+div#bshow {
+    background-image: url("img/bshow.svg");
+}
+div.buttonidle {
+    padding: 1px;
+    border-width: 1px;
+    border-color: #888888;
+    border-style: solid;
+}
+div.buttonhover {
+    padding: 0px;
+    border-width: 2px;
+    border-color: #black;
+    border-style: solid;
+}
+div.buttonpress {
+    padding: 0px;
+    border-width: 2px;
+    border-color: #black;
+    border-style: solid;
+    background-color: #cccccc;
+}
+div.unselected {
+    padding: 1px;
+    border-width: 1px;
+    border-color: #888888;
+    border-style: solid;
+}
+div.hoverselect {
+    padding: 0px;
+    border-width: 2px;
+    border-color: #black;
+    border-style: solid;
+}
+div.selected {
+    padding: 0px;
+    border-width: 2px;
+    border-color: #d80f0f;
+    border-style: solid;
 }
