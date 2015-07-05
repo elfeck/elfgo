@@ -1,0 +1,20 @@
+Buttons/Tools:
+(1) Pass
+(2-5) <<, <, >, >>
+(6) Remove tree branch
+(7-11) Marking: Numbers, Letters, Circle, Square, Triangle
+(12) Put B/W Stones
+(13,14) Save, Namefield
+
+
+Sgf:
+(*) Parse sgf to board/tree
+
+
+(*) Undo remove tree branch
+(*) Link to move in tree
+(*) Hover link to highlight
+(*) Show variation options like in eidogo
+(*) Name variations in the tree somehow
+
+(*) Refactor the ugly-ass JS code

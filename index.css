@@ -1,0 +1,58 @@
+html {
+    color: #222222;
+    font-family: "sans serif";
+    background-color: #eeeeee;
+}
+svg {
+    top: 0 !important;
+    left: 0 !important;
+}
+body {
+    width: 800px;
+    height: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 20px;
+    background-color: #dddddd;
+}
+div#board-canvas {
+    display: inline-block;
+    width: 401px;
+    height: 401px;
+    background-image: url("img/19_board.svg");
+    margin-top: 20px;
+    margin-left: 20px;
+    margin-bottom: 20px;
+    cursor: pointer;
+}
+div#tree-canvas {
+    background-color: #fffcf6;
+    border-width: 2px;
+    border-style: solid;
+    border-color: #888888;
+    display: inline-block;
+    width: 341px;
+    height: 150px;
+    overflow: auto;
+    cursor: pointer;
+}
+div#tool-canvas {
+    background-color: #fffcf6;
+    border-width: 2px;
+    border-style: solid;
+    border-color: #888888;
+    display: inline-block;
+    width: 341px;
+    height: 30px;
+    margin-top: 5px;
+}
+div#all-container {
+    font-size: 0px;
+}
+div#side-container {
+    display: inline-block;
+    width: 369px;
+    margin-top: 20px;
+    margin-left: 10px;
+    vertical-align: top;
+}

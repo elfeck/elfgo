@@ -2,8 +2,8 @@ $(function() {
     treeDim = [326, 135];
     boardcanvas = Raphael("board-canvas", 401, 401);
     treecanvas = Raphael("tree-canvas", treeDim[0], treeDim[1]);
-    toolcanvas = Raphael("tool-canvas", 341, 30);
     boardcanvas.renderfix();
+    treecanvas.renderfix();
     lastMouseover = null;
     offs = 20.5;
     treeOffs = 12;
@@ -14,6 +14,7 @@ $(function() {
     stoneRadius = 9;
     treeRadius = 8;
     numbersVisible = false;
+    treePaths = new Array();
 
     board = new Array(dimX);
     gameTree = new TreeNode(null, currentMove, true, null);
@@ -125,7 +126,6 @@ $(function() {
 	}
 	currentTreePos = currentTreePos.addChild(moves, currentMove + 1);
 	drawTree();
-	console.log(gameTree.writeTree());
 	currentMove++;
     });
     $(document).on("keyup", function(e) {
@@ -152,8 +152,17 @@ $(function() {
 		}
 	    }
 	}
+	if(e.keyCode == 80) {
+	    var moves = [new PassMove(getCurrentColor())];
+	    currentTreePos = currentTreePos.addChild(moves, currentMove + 1);
+	    drawTree();
+	    currentMove++;
+	}
 	if(e.keyCode == 78) {
 	    toggleNumbersVisible();
+	}
+	if(e.keyCode == 83) {
+	    console.log(writeSgf());
 	}
     });
 });
@@ -169,6 +178,8 @@ resetBoard = function() {
 }
 
 drawTree = function() {
+    for(var i = 0; i < treePaths.length; i++) treePaths[i].remove();
+    treePaths = [];
     gameTree.drawTree(0, 0);
 }
 
@@ -201,6 +212,9 @@ loadFromNode = function(node) {
 }
 
 movesEqual = function(m1, m2) {
+    if(m1.action == 2 || m2.action == 2) {
+	return m1.action == m2.action && m1.color == m2.color;
+    }
     return m1.color == m2.color && m1.position[0] == m2.position[0] &&
 	m1.position[1] == m2.position[1] && m1.action == m2.action;
 }
@@ -364,22 +378,31 @@ TreeNode = function(moves, moveNumber, root, parent) {
     this.children = [];
     this.moveNumber = moveNumber;
     this.isRoot = root;
+    this.moves = moves;
 
     //content
-    if(!this.isRoot) this.numText = treecanvas.text(0, 0, this.moveNumber);
-    else this.numText = treecanvas.text(0, 0, "");
+    if(this.isRoot) {
+	this.numText = treecanvas.text(0, 0, "");
+    } else if(this.moves[0].action == 2) {
+	this.numText = treecanvas.text(0, 0, "P");
+    } else {
+	this.numText = treecanvas.text(0, 0, this.moveNumber);
+    }
     this.numText.attr("font-size", 11);
     if(!root) {
-	this.moves = moves;
 	this.circle = treecanvas.circle(0, 0, treeRadius);
 	this.circle.attr("stroke", "#000000");
-	if(moves[0].color == 1) {
+	if(this.moves[0].color == 1) {
 	    this.circle.attr("fill", "#000000");
 	    this.numText.attr("fill", "#ffffff");
 	}
-	if(moves[0].color == 2) {
+	if(this.moves[0].color == 2) {
 	    this.circle.attr("fill", "#ffffff");
 	    this.numText.attr("fill", "#000000");
+	}
+	if(this.moves[0].action == 2) {
+	    this.numText.attr("fill", "#ff0000");
+	    this.numText.attr("font-weight", "bold");
 	}
 	this.numText.hide();
 	this.circle.hide();
@@ -423,10 +446,19 @@ TreeNode.prototype.addChild = function(moves, moveNumber) {
 TreeNode.prototype.writeTree = function() {
     var str = "";
     var compact = false;
-    if(this.parent != null) compact = this.parent.children.length == 1;
+    if(this.isRoot) compact = true;1
+    if(!this.isRoot) compact = this.parent.children.length == 1;
     if(!compact) str += "(";
-    //str += this.toString();
-    str += "O";
+
+    if(!this.isRoot) {
+	if(this.moves[0].action != 2) {
+	    str += ";" + getNodeColor(this) + "[" +
+		coordToAlphabetic(this.moves[0].position) + "]";
+	} else {
+	    str += ";" + getNodeColor(this) + "[tt]";
+	}
+    }
+
     for(var i = 0; i < this.children.length; i++) {
 	str += this.children[i].writeTree();
     }
@@ -462,8 +494,24 @@ TreeNode.prototype.drawTree = function(col, row) {
 	    currentTreePosMarker.show();
 	}
     }
+    if(this.isRoot && this.children.length > 0) {
+	treePaths.push(treecanvas.path("M" + (xoffs + treeRadius - 2) + " " +
+				       (yoffs) + "L" +
+				       (xoffs + 2 + treeRadius) + " " +
+				       yoffs));
+    }
     var rrow = 0;
     for(var i = 0; i < this.children.length; i++) {
+	if(i > 0) {
+	    var roffs = this.isRoot ? 2 : 0;
+	    var yyoffs = yoffs + (2 * treeRadius + 5) * (i + rrow);
+	    var xxoffs = xoffs + (2 * treeRadius + 2);
+	    var path = treecanvas.path(
+		"M" + xoffs + " " + (yoffs + treeRadius - roffs) +
+		    "L" + xoffs + " " + yyoffs +
+		    "L" + (xxoffs - treeRadius) + " " + yyoffs);
+	    treePaths.push(path);
+	}
 	rrow += this.children[i].drawTree(col + 1, row + rrow + i);
     }
     return Math.max(0, this.children.length - 1) + rrow;
@@ -473,6 +521,7 @@ TreeNode.prototype.playMove = function(reversed) {
     if(this.isRoot) return;
     for(var i = 0; i < this.moves.length; i++) {
 	var move = this.moves[i];
+	if(move.action == 2) return; //passmove
 	if(reversed != (move.action == 0)) {
 	    board[move.position[0]][move.position[1]].
 		putStone(move.color, this.moveNumber);
@@ -520,9 +569,37 @@ TreeNode.prototype.searchFor = function(node) {
 
 //0 place
 //1 remove
+//2 pass
 Move = function(fp, action) {
     this.color = fp.state;
     this.position = [fp.x, fp.y];
     this.action = action;
     return this;
+}
+
+PassMove = function(color) {
+    this.color = color;
+    this.position = null;
+    this.action = 2;
+}
+
+writeSgf = function() {
+    var sgf = "(;GM[1]FF[4]CA[UTF-8][SZ" + Math.max(dimX, dimY) + "]"
+    sgf += gameTree.writeTree() + ")";
+    return sgf;
+}
+
+coordToAlphabetic = function(coord) {
+    var x = coord[0];
+    var y = coord[1];
+    var str = "";
+    str += String.fromCharCode(96 + x + 1);
+    str += String.fromCharCode(96 + y + 1);
+    return str;
+}
+
+getNodeColor = function(node) {
+    if(node.moves[0].color == 1) return "B";
+    if(node.moves[0].color == 2) return "W";
+    console.log("Color error");
 }
