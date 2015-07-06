@@ -54,6 +54,10 @@ $(function() {
     treeRadius = 8;
     numbersVisible = false;
     currentTool = Tools.PLAY;
+    alphas = new Array(26);
+    nums = new Array(20);
+    alphas.fill(false);
+    nums.fill(false);
     treePaths = new Array();
 
     board = new Array(dimX);
@@ -113,6 +117,12 @@ $(function() {
 	case Tools.WHITE:
 	    putStone(x, y, NodeType.WHITE);
 	    break;
+	case Tools.ALPHA:
+	    putLabel(x, y, Tools.ALPHA);
+	    break;
+	case Tools.NUM:
+	    putLabel(x, y, Tools.NUM);
+	    break;
 	}
     });
     $(document).on("keyup", function(e) {
@@ -168,6 +178,8 @@ play = function(x, y) {
 	    if(actionsEq(currentTreePos.children[i].actions[0], act)) {
 		//move already exists
 		currentTreePos.children[i].applyNode(false);
+		resetLabels();
+		currentTreePos.children[i].applyLabels();
 		currentTreePos = currentTreePos.children[i];
 		drawTree();
 		currentMove++;
@@ -194,6 +206,7 @@ play = function(x, y) {
     currentTreePos = currentTreePos.addChild(actions, currentMove + 1);
     drawTree();
     currentMove++;
+    resetLabels();
 }
 
 pass = function() {
@@ -236,10 +249,47 @@ putStone = function(x, y, color) {
     currentTreePos.simplifyActions();
 }
 
+
+putLabel = function(x, y, type) {
+    if(!board[x][y].isOverlayFree()) {
+	var act = new NodeAction(ActionType.REM, board[x][y].overlayState,
+				 [x,y]);
+	currentTreePos.actions.push(act);
+	if(board[x][y].overlayState == type) {
+	    freeLabelTool(type, board[x][y].overlayInfo);
+	    board[x][y].setOverlayState(FpState.EMPTY);
+	    if(lastMO != null) {
+		board[lastMO[0]][lastMO[1]].
+		    showMouseover(mouseoverToolToState());
+	    }
+	    return;
+	}
+    }
+    var act = new NodeAction(ActionType.PUT, type, [x,y]);
+    currentTreePos.actions.push(act);
+    if(type == FpState.ALPHA) {
+	var info = labelToolInfo(type);
+	takeFirst(alphas);
+	board[x][y].setOverlayState(type, info);
+    } else if(type == FpState.NUM) {
+	var info = labelToolInfo(type);
+	takeFirst(nums);
+	board[x][y].setOverlayState(type, info);
+    } else {
+	board[x][y].setOverlayState(type, null);
+    }
+    board[x][y].lmouseover = false;
+    currentTreePos.simplifyActions();
+}
+
+
 goForward = function() {
     if(currentTreePos.children.length > 0) {
+	resetLabels();
 	currentTreePos = currentTreePos.children[0];
 	currentTreePos.applyNode(false);
+	resetLabels();
+	currentTreePos.applyLabels();
 	drawTree();
 	currentMove++;
 	if(lastMO != null) {
@@ -253,6 +303,8 @@ goBackward = function() {
     if(currentTreePos.isRoot) return;
     currentTreePos.applyNode(true);
     currentTreePos = currentTreePos.parent;
+    resetLabels();
+    currentTreePos.applyLabels();
     drawTree();
     currentMove--
     if(lastMO != null) {
@@ -269,12 +321,58 @@ mouseoverToolToState = function() {
     return currentTool;
 }
 
+labelToolInfo = function(tool) {
+    switch(tool) {
+    case Tools.ALPHA:
+	return String.fromCharCode(65 + getFirst(alphas));
+    case Tools.NUM:
+	return getFirst(nums) + 1;
+    }
+    return null;
+}
+
+getFirst = function(array) {
+    var ind = -1;
+    for(var i = 0; i < array.length; i++) {
+	if(!array[i]) {
+	    ind = i;
+	    break;
+	}
+    }
+    if(ind == -1) ind = array.length - 1;
+    return ind;
+}
+
+takeFirst = function(array) {
+    for(var i = 0; i < array.length; i++) {
+	if(!array[i]) {
+	    array[i] = true;
+	    break;
+	}
+    }
+}
+
+freeLabelTool = function(tool, ele) {
+    if(tool == Tools.ALPHA) {
+	alphas[ele.charCodeAt(0) - 65] = false;
+    }
+    if(tool == Tools.NUM) {
+	nums[ele - 1] = false;
+    }
+}
+
 getCurrentColor = function() { return currentMove % 2 + 1; }
 getOppositeCurrentColor = function() { return (currentMove + 1) % 2 + 1; }
 
 resetBoard = function() {
     for(var i = 0; i < board.length; i++) {
 	for(var j = 0; j < board[i].length; j++) board[i][j].clearField();
+    }
+}
+
+resetLabels = function() {
+    for(var i = 0; i < board.length; i++) {
+	for(var j = 0; j < board[i].length; j++) board[i][j].clearLabel();
     }
 }
 
@@ -308,6 +406,7 @@ loadFromNode = function(node) {
     currentTreePos = node;
     var path = gameTree.searchFor(node).reverse();
     for(var i = 0; i < path.length; i++) path[i].applyNode(false);
+    path[path.length - 1].applyLabels();
     currentMove = path.length - 1;
     drawTree();
 }
@@ -330,12 +429,14 @@ FieldPoint = function(x, y) {
 
     this.state = FpState.EMPTY;
     this.overlayState = FpState.EMPTY;
-    this.text = ""; // for ALPH, NUM and MoveNumber
 
     this.mouseover = false;
+    this.lmouseover = false;
     this.image = null;
+    this.overlayImage = null;
 
     this.stoneRemovable = FpState.EMPTY;
+    this.overlayInfo = null;
 
     // For capture logic
     this.gmarked = false;
@@ -344,6 +445,11 @@ FieldPoint = function(x, y) {
 }
 
 FieldPoint.prototype.setState = function(state) {
+    if(this.state == FpState.BLACK) {
+	if(this.overlayState != FpState.EMPTY) {
+	    this.overlayImage.attr("fill", "#000000");
+	}
+    }
     this.state = state;
     if(this.image != null) this.image.remove();
     this.image = null;
@@ -355,22 +461,56 @@ FieldPoint.prototype.setState = function(state) {
 					this.y * width + offs, stoneRadius);
 	this.image.attr("stroke", "#000000");
 	this.image.attr("fill", "#000000");
+	if(this.overlayState != FpState.EMPTY) {
+	    this.overlayImage.attr("fill", "#ffffff");
+	}
+	this.image.toBack();
 	break;
     case FpState.WHITE:
     	this.image = boardcanvas.circle(this.x * width + offs,
 					this.y * width + offs, stoneRadius);
 	this.image.attr("stroke", "#000000");
 	this.image.attr("fill", "#ffffff");
+	this.image.toBack();
 	break;
     }
 }
 
-FieldPoint.prototype.setOverlayState = function(state) {
-
+FieldPoint.prototype.setOverlayState = function(state, info) {
+    this.overlayState = state;
+    if(this.overlayImage != null) this.overlayImage.remove();
+    this.overlayImage = null;
+    this.overlayInfo = null;
+    switch(this.overlayState) {
+    case FpState.EMPTY: break;
+    case FpState.ALPHA:
+	this.overlayInfo = info;
+	this.overlayImage = boardcanvas.
+	    text(this.x * width + offs, this.y * width + offs, info);
+	this.overlayImage.attr("font-size", 18);
+	if(this.state == FpState.BLACK) {
+	    this.overlayImage.attr("fill", "#ffffff");
+	}
+	break;
+    case FpState.NUM:
+	this.overlayInfo = info;
+	this.overlayImage = boardcanvas.text(this.x * width + offs,
+					     this.y * width + offs,
+					     info);
+	this.overlayImage.attr("font-size", 18);
+	if(this.state == FpState.BLACK) {
+	    this.overlayImage.attr("fill", "#ffffff");
+	}
+	break;
+    }
 }
 
 FieldPoint.prototype.isFree = function() {
     return this.mouseover || this.state == FpState.EMPTY;
+}
+
+FieldPoint.prototype.isOverlayFree = function() {
+    return this.lmouseover || this.overlayState == FpState.EMPTY;
 }
 
 FieldPoint.prototype.clearField = function() {
@@ -378,14 +518,32 @@ FieldPoint.prototype.clearField = function() {
     this.mouseover = false;
     this.toRemove = false;
     this.stoneRemovable = FpState.EMPTY;
+    this.clearLabel();
+}
+
+FieldPoint.prototype.clearLabel = function() {
+    this.setOverlayState(FpState.EMPTY);
+    this.lmouseover = false;
 }
 
 FieldPoint.prototype.showMouseover = function(mstate) {
-    if(this.state == FpState.EMPTY) {
+    if(mstate < 3 && this.state == FpState.EMPTY) {
 	this.setState(mstate);
 	this.image.attr("stroke-opacity", 0.6);
 	this.image.attr("fill-opacity", 0.6);
 	this.mouseover = true;
+	if(this.overlayImage != FpState.EMPTY) this.image.toBack();
+    } else if(mstate >= 3 && this.overlayState == FpState.EMPTY) {
+	this.setOverlayState(mstate);
+	this.overlayImage.attr("stroke-opacity", 0.9);
+	this.overlayImage.attr("fill-opacity", 0.9);
+	if(mstate == FpState.ALPHA) {
+	    this.overlayImage.attr("text", labelToolInfo(mstate));
+	}
+	if(mstate == FpState.NUM) {
+	    this.overlayImage.attr("text", labelToolInfo(mstate));
+	}
+	this.lmouseover = true;
     }
 }
 
@@ -393,6 +551,10 @@ FieldPoint.prototype.hideMouseover = function() {
     if(this.mouseover) {
 	this.setState(FpState.EMPTY);
 	this.mouseover = false;
+    }
+    if(this.lmouseover) {
+	this.setOverlayState(FpState.EMPTY);
+	this.lmouseover = false;
     }
 }
 
@@ -598,6 +760,7 @@ TreeNode.prototype.applyNode = function(reversed) {
 	var y = action.pos[1];
 	if(action.actionType == ActionType.PASS) continue;
 	if(reversed != (action.actionType == ActionType.PUT)) {
+	    if(action.nodeType > 2 && action.nodeType <= 7) continue; //label
 	    if(action.nodeType > 7) {
 		board[x][y].stoneRemovable = action.nodeType - 7;
 		board[x][y].setState(action.nodeType - 7);
@@ -607,11 +770,25 @@ TreeNode.prototype.applyNode = function(reversed) {
 		board[x][y].mouseover = false;
 	    }
 	} else {
+	    if(action.nodeType > 2 && action.nodeType <= 7) continue; //label
 	    if(action.nodeType > 7) {
-		board[x][y].stoneRemovable = FpState.EMPTY;
-	    }
+		    board[x][y].stoneRemovable = FpState.EMPTY;
+		}
 	    board[x][y].mouseover = false;
 	    board[x][y].setState(FpState.EMPTY);
+	}
+    }
+}
+
+TreeNode.prototype.applyLabels = function() {
+    for(var i = 0; i < this.actions.length; i++) {
+	var action = this.actions[i];
+	var x = action.pos[0];
+	var y = action.pos[1];
+	if(action.actionType == ActionType.PASS) continue;
+	if(action.nodeType > 2 && action.nodeType <= 7) {
+	    board[x][y].setOverlayState(action.nodeType);
+	    board[x][y].lmouseover = false;
 	}
     }
 }
@@ -742,14 +919,12 @@ toolButtonPress = function(buttonId) {
     case "bshow": toggleNumbersVisible(); break;
     case "bbw": goBackward(); break;
     case "bfw": goForward(); break;
-    case "bbww": {
+    case "bbww":
 	for(var i = 0; i < 5; i++) goBackward();
 	break;
-    }
-    case "bfww": {
+    case "bfww":
 	for(var i = 0; i < 5; i++) goForward();
 	break;
-    }
     }
 }
 
@@ -758,5 +933,7 @@ toolSelectPress = function(buttonId) {
     case "tplay": currentTool = Tools.PLAY; break;
     case "tblack": currentTool = Tools.BLACK; break;
     case "twhite": currentTool = Tools.WHITE; break;
+    case "talph": currentTool = Tools.ALPHA; break;
+    case "tnum": currentTool = Tools.NUM; break;
     }
 }
