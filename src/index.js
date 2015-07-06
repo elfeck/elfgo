@@ -100,14 +100,14 @@ $(function() {
 	    return;
 	}
 	//move is valid
-	var putMove = new Move(board[x][y], 0);
+	var act = new NodeAction(ActionType.PUT, getCurrentColor(), [x, y]);
 	board[x][y].state = oldState;
 	//check if a child of currentTreePos is this move
 	if(currentTreePos.children.length > 0) {
 	    for(var i = 0; i < currentTreePos.children.length; i++) {
-		if(movesEqual(currentTreePos.children[i].moves[0], putMove)) {
+		if(actionsEq(currentTreePos.children[i].actions[0], act)) {
 		    //move already exists
-		    currentTreePos.children[i].playMove(false);
+		    currentTreePos.children[i].applyNode(false);
 		    currentTreePos = currentTreePos.children[i];
 		    drawTree();
 		    currentMove++;
@@ -118,8 +118,8 @@ $(function() {
 	//move did not exist
 	board[x][y].setState(getCurrentColor());
 	board[x][y].mouseover = false;
-	var moves = new Array();
-	moves.push(putMove);
+	var actions = new Array();
+	actions.push(act);
 	for(var i = 0; i < board.length; i++) {
 	    for(var j = 0; j < board[i].length; j++) {
 		if(board[i][j].toRemove) {
@@ -128,14 +128,14 @@ $(function() {
 		}
 	    }
 	}
-	currentTreePos = currentTreePos.addChild(moves, currentMove + 1);
+	currentTreePos = currentTreePos.addChild(actions, currentMove + 1);
 	drawTree();
 	currentMove++;
     });
     $(document).on("keyup", function(e) {
 	if(e.keyCode == 66) {
 	    if(currentTreePos.isRoot) return;
-	    currentTreePos.playMove(true);
+	    currentTreePos.applyNode(true);
 	    currentTreePos = currentTreePos.parent;
 	    drawTree();
 	    currentMove--
@@ -147,7 +147,7 @@ $(function() {
 	if(e.keyCode == 70) {
 	    if(currentTreePos.children.length > 0) {
 		currentTreePos = currentTreePos.children[0];
-		currentTreePos.playMove(false);
+		currentTreePos.applyNode(false);
 		drawTree();
 		currentMove++;
 		if(lastMO != null) {
@@ -157,10 +157,11 @@ $(function() {
 	    }
 	}
 	if(e.keyCode == 80) {
-	    var moves = [new PassMove(getCurrentColor())];
-	    currentTreePos = currentTreePos.addChild(moves, currentMove + 1);
+	    var acts = [new NodeAction(ActionType.PASS,
+				       getCurrentColor(), [])];
+	    currentTreePos = currentTreePos.addChild(acts, currentMove + 1);
 	    drawTree();
-	    currentMove++;
+	    currentMove++;1
 	}
 	if(e.keyCode == 78) {
 	    toggleNumbersVisible();
@@ -194,6 +195,22 @@ FpState = {
     TRI: 7,
     MOVENUM: 8
 };
+
+NodeType = {
+    BLACK: 1,
+    WHITE: 2,
+    ALPHA: 3,
+    NUM: 4,
+    CIRC: 5,
+    QUAD: 6,
+    TRI: 7,
+}
+
+ActionType = {
+    PUT: 0,
+    REM: 1,
+    PASS: 2
+}
 
 mouseoverToolToState = function() {
     switch(currentTool) {
@@ -243,17 +260,14 @@ loadFromNode = function(node) {
     resetBoard();
     currentTreePos = node;
     var path = gameTree.searchFor(node).reverse();
-    for(var i = 0; i < path.length; i++) path[i].playMove(false);
+    for(var i = 0; i < path.length; i++) path[i].applyNode(false);
     currentMove = path.length - 1;
     drawTree();
 }
 
-movesEqual = function(m1, m2) {
-    if(m1.action == 2 || m2.action == 2) {
-	return m1.action == m2.action && m1.color == m2.color;
-    }
-    return m1.color == m2.color && m1.position[0] == m2.position[0] &&
-	m1.position[1] == m2.position[1] && m1.action == m2.action;
+actionsEq = function(m1, m2) {
+    return m1.actionType == m2.actionType && m1.nodeType == m2.nodeType &&
+	m1.pos[0] == m2.pos[0] && m1.pos[1] == m2.pos[1];
 }
 
 toggleNumbersVisible = function() {
@@ -281,10 +295,6 @@ FieldPoint = function(x, y) {
 }
 
 FieldPoint.prototype.setState = function(state) {
-    if(this.state != FpState.EMPTY && state != FpState.EMPTY &&
-       !this.mouseover) {
-	console.log("warning: nonempty setState");
-    }
     this.state = state;
     if(this.image != null) this.image.remove();
     this.image = null;
@@ -382,45 +392,49 @@ var go = function(fp, gr, lib) {
     return lib;
 }
 
-TreeNode = function(moves, moveNumber, root, parent) {
+// nodeType for the color, nodeAction for the base-action: play w/b or pass
+TreeNode = function(actions, moveNumber, isRoot, parent) {
     this.parent = parent;
     this.children = [];
     this.moveNumber = moveNumber;
-    this.isRoot = root;
-    this.moves = moves;
+    this.isRoot = isRoot;
+    this.actions = actions;
 
-    //content
-    if(this.isRoot) {
-	this.numText = treecanvas.text(0, 0, "");
-    } else if(this.moves[0].action == 2) {
-	this.numText = treecanvas.text(0, 0, "P");
-    } else {
-	this.numText = treecanvas.text(0, 0, this.moveNumber);
-    }
+    this.circle = treecanvas.circle(0, 0, treeRadius);
+    this.circle.attr("stroke", "#000000");
+    this.circle.hide();
+    this.numText = treecanvas.text(0, 0, moveNumber);
     this.numText.attr("font-size", 11);
-    if(!root) {
-	this.circle = treecanvas.circle(0, 0, treeRadius);
-	this.circle.attr("stroke", "#000000");
-	if(this.moves[0].color == 1) {
+    this.numText.toFront();
+    this.numText.hide();
+
+    if(!isRoot) {
+	var action = actions[0];
+	if(!((action.actionType == ActionType.PUT ||
+	      action.actionType == ActionType.PASS) && action.nodeType < 3)) {
+	    console.log("invalid node");
+	}
+	this.actions.push(action);
+
+	switch(action.nodeType) {
+	case NodeType.BLACK:
 	    this.circle.attr("fill", "#000000");
 	    this.numText.attr("fill", "#ffffff");
-	}
-	if(this.moves[0].color == 2) {
+	    break;
+	case NodeType.WHITE:
 	    this.circle.attr("fill", "#ffffff");
 	    this.numText.attr("fill", "#000000");
+	    break;
 	}
-	if(this.moves[0].action == 2) {
+	if(action.actionType == ActionType.PASS) {
 	    this.numText.attr("fill", "#ff0000");
 	    this.numText.attr("font-weight", "bold");
+	    this.numText.attr("text", "P");
 	}
-	this.numText.hide();
-	this.circle.hide();
     } else {
-	this.circle = treecanvas.circle(0, 0, Math.floor(treeRadius - 2));
+	this.circle.attr("r", treeRadius - 2);
 	this.circle.attr("fill", "#884444");
-	this.circle.hide();
     }
-    this.numText.toFront();
     this.circle.mC = treecanvas.circle(0, 0, treeRadius + 2);
     this.circle.mC.attr("stroke-width", 1);
     this.circle.mC.attr("stroke-opacity", 1);
@@ -433,7 +447,6 @@ TreeNode = function(moves, moveNumber, root, parent) {
     this.circleSet = treecanvas.set();
     this.circleSet.push(this.circle);
     this.circleSet.push(this.numText);
-
     this.circleSet.mouseover(function() {
 	this.mC.show();
     });
@@ -446,8 +459,8 @@ TreeNode = function(moves, moveNumber, root, parent) {
     return this;
 }
 
-TreeNode.prototype.addChild = function(moves, moveNumber) {
-    var child = new TreeNode(moves, moveNumber, false, this);
+TreeNode.prototype.addChild = function(action, moveNumber) {
+    var child = new TreeNode(action, moveNumber, false, this);
     this.children.push(child);
     return child;
 }
@@ -455,14 +468,14 @@ TreeNode.prototype.addChild = function(moves, moveNumber) {
 TreeNode.prototype.writeTree = function() {
     var str = "";
     var compact = false;
-    if(this.isRoot) compact = true;1
+    if(this.isRoot) compact = true;
     if(!this.isRoot) compact = this.parent.children.length == 1;
     if(!compact) str += "(";
 
     if(!this.isRoot) {
-	if(this.moves[0].action != 2) {
+	if(this.actions[0].actionType != ActionType.PASS) {
 	    str += ";" + getNodeColor(this) + "[" +
-		coordToAlphabetic(this.moves[0].position) + "]";
+		coordToAlphabetic(this.actions[0].pos) + "]";
 	} else {
 	    str += ";" + getNodeColor(this) + "[tt]";
 	}
@@ -526,34 +539,18 @@ TreeNode.prototype.drawTree = function(col, row) {
     return Math.max(0, this.children.length - 1) + rrow;
 }
 
-TreeNode.prototype.playMove = function(reversed) {
+TreeNode.prototype.applyNode = function(reversed) {
     if(this.isRoot) return;
-    for(var i = 0; i < this.moves.length; i++) {
-	var move = this.moves[i];
-	if(move.action == 2) return; //passmove
-	if(reversed != (move.action == 0)) {
-	    board[move.position[0]][move.position[1]].
-		setState(move.color);
+    for(var i = 0; i < this.actions.length; i++) {
+	var action = this.actions[i];
+	if(action.actionType == ActionType.PASS) continue;
+	if(reversed != (action.actionType == ActionType.PUT)) {
+	    board[action.pos[0]][action.pos[1]].setState(action.nodeType);
+	    board[action.pos[0]][action.pos[1]].mouseover = false;
 	} else {
-	    board[move.position[0]][move.position[1]].setState(FpState.EMPTY);
+	    board[action.pos[0]][action.pos[1]].setState(FpState.EMPTY);
 	}
     }
-}
-
-TreeNode.prototype.toString = function() {
-    var str = "{"
-    for(var i = 0; i < this.moves.length; i++) {
-	var move = this.moves[i];
-	if(move.action == 0) {
-	    str += "P" + move.color + "[" + move.position[0] + " " +
-		move.position[1] + "]";
-	} else {
-	    str += "R" + move.color + "[" + move.position[0] + " " +
-		move.position[1] + "]";
-	}
-    }
-    str += "}";
-    return str;
 }
 
 TreeNode.prototype.searchFor = function(node) {
@@ -576,20 +573,12 @@ TreeNode.prototype.searchFor = function(node) {
     return null;
 }
 
-//0 place
-//1 remove
-//2 pass
-Move = function(fp, action) {
-    this.color = fp.state;
-    this.position = [fp.x, fp.y];
-    this.action = action;
-    return this;
-}
 
-PassMove = function(color) {
-    this.color = color;
-    this.position = null;
-    this.action = 2;
+NodeAction = function(actionType, nodeType, pos) {
+    this.actionType = actionType;
+    this.nodeType = nodeType;
+    this.pos = pos;
+    return this;
 }
 
 writeSgf = function() {
@@ -608,8 +597,8 @@ coordToAlphabetic = function(coord) {
 }
 
 getNodeColor = function(node) {
-    if(node.moves[0].color == 1) return "B";
-    if(node.moves[0].color == 2) return "W";
+    if(node.actions[0].nodeType == NodeType.BLACK) return "B";
+    if(node.actions[0].nodeType == NodeType.WHITE) return "W";
     console.log("Color error");
 }
 
