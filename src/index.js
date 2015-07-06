@@ -4,7 +4,7 @@ $(function() {
     treecanvas = Raphael("tree-canvas", treeDim[0], treeDim[1]);
     boardcanvas.renderfix();
     treecanvas.renderfix();
-    lastMouseover = null;
+    lastMO = null;
     offs = 20.5;
     treeOffs = 12;
     width = 20;
@@ -14,6 +14,7 @@ $(function() {
     stoneRadius = 9;
     treeRadius = 8;
     numbersVisible = false;
+    currentTool = Tools.PLAY;
     treePaths = new Array();
 
     board = new Array(dimX);
@@ -28,9 +29,7 @@ $(function() {
 
     for(var x = 0; x < dimX; x++) {
 	board[x] = new Array(dimY);
-	for(var y = 0; y < dimY; y++) {
-	    board[x][y] = new FieldPoint(x, y);
-	}
+	for(var y = 0; y < dimY; y++) board[x][y] = new FieldPoint(x, y);
     }
 
     addTools();
@@ -39,21 +38,22 @@ $(function() {
     $("#board-canvas").on("mousemove", function(e) {
 	var mx = offsetMouse(this, e)[0];
 	var my = offsetMouse(this, e)[1];
+	// move out of canvas
 	if(mx < 10.5 || mx > 388.5 || my < 10 || my > 388) {
-	    if(lastMouseover != null) {
-		board[lastMouseover[0]][lastMouseover[1]].hideMouseover();
-		lastMouseover = null;
+	    if(lastMO != null) {
+		board[lastMO[0]][lastMO[1]].hideMouseover(FpState.EMPTY);
+		lastMO = null;
 	    }
 	    return;
 	}
 	var coord = mouseToIndex(mx, my);
-	if(lastMouseover == null ||
-	   lastMouseover[0] != coord[0] || lastMouseover[1] != coord[1]) {
-	    if(lastMouseover != null) {
-		board[lastMouseover[0]][lastMouseover[1]].hideMouseover();
+	if(lastMO == null ||
+	   lastMO[0] != coord[0] || lastMO[1] != coord[1]) {
+	    if(lastMO != null) {
+		board[lastMO[0]][lastMO[1]].hideMouseover(FpState.EMPTY);
 	    }
-	    lastMouseover = coord;
-	    board[coord[0]][coord[1]].showMouseover();
+	    lastMO = coord;
+	    board[coord[0]][coord[1]].showMouseover(mouseoverToolToState());
 	}
     });
     $("#board-canvas").on("mouseup", function(e) {
@@ -64,7 +64,9 @@ $(function() {
 	var x = coord[0];
 	var y = coord[1];
 
-	if(board[x][y].state == 1 || board[x][y].state == 2) return;
+	// needs change for layover
+	if(!board[x][y].isFree()) return;
+
 	var oldState = board[x][y].state;
 
 	//simulate move
@@ -114,14 +116,15 @@ $(function() {
 	    }
 	}
 	//move did not exist
-	board[x][y].putStone(getCurrentColor(), currentMove + 1);
+	board[x][y].setState(getCurrentColor());
+	board[x][y].mouseover = false;
 	var moves = new Array();
 	moves.push(putMove);
 	for(var i = 0; i < board.length; i++) {
 	    for(var j = 0; j < board[i].length; j++) {
 		if(board[i][j].toRemove) {
 		    moves.push(new Move(board[i][j], 1));
-		    board[i][j].removeStone();
+		    board[i][j].setState(FpState.EMPTY);
 		}
 	    }
 	}
@@ -136,9 +139,9 @@ $(function() {
 	    currentTreePos = currentTreePos.parent;
 	    drawTree();
 	    currentMove--
-	    if(lastMouseover != null) {
-		board[lastMouseover[0]][lastMouseover[1]].
-		    showMouseover();
+	    if(lastMO != null) {
+		board[lastMO[0]][lastMO[1]].
+		    showMouseover(mouseoverToolToState());
 	    }
 	}
 	if(e.keyCode == 70) {
@@ -147,9 +150,9 @@ $(function() {
 		currentTreePos.playMove(false);
 		drawTree();
 		currentMove++;
-		if(lastMouseover != null) {
-		    board[lastMouseover[0]][lastMouseover[1]].
-			showMouseover();
+		if(lastMO != null) {
+		    board[lastMO[0]][lastMO[1]].
+			showMouseover(mouseoverToolToState());
 		}
 	    }
 	}
@@ -167,6 +170,39 @@ $(function() {
 	}
     });
 });
+
+Tools = {
+    PLAY: 0,
+    BLACK: 1,
+    WHITE: 2,
+    ALPHA: 3,
+    NUM: 4,
+    CIRC: 5,
+    QUAD: 6,
+    TRI: 7,
+    REM: 8
+};
+
+FpState = {
+    EMPTY: 0,
+    BLACK: 1,
+    WHITE: 2,
+    ALPHA: 3,
+    NUM: 4,
+    CIRC: 5,
+    QUAD: 6,
+    TRI: 7,
+    MOVENUM: 8
+};
+
+mouseoverToolToState = function() {
+    switch(currentTool) {
+    case Tools.PLAY: return getCurrentColor();
+    case Tools.REM: return FpState.EMPTY();
+    }
+    // only works because Tools matches FpState
+    return currentTool;
+}
 
 getCurrentColor = function() {
     return currentMove % 2 + 1;
@@ -227,104 +263,76 @@ toggleNumbersVisible = function() {
     }
 }
 
-// empty = 0
-// black = 1
-// white = 2
-// mouseover = 3
 FieldPoint = function(x, y) {
     this.x = x;
     this.y = y;
-    this.state = 0;
+
+    this.state = FpState.EMPTY;
+    this.overlayState = FpState.EMPTY;
+    this.text = ""; // for ALPH, NUM and MoveNumber
+
+    this.mouseover = false;
+    this.image = null;
+
+    // For capture logic
     this.gmarked = false;
     this.lmarked = false;
     this.toRemove = false;
-    this.isInit = false;
 }
 
-FieldPoint.prototype.init = function() {
-    this.circle = boardcanvas.circle(this.x * width + offs,
-				     this.y * width + offs, stoneRadius);
-    this.numText = boardcanvas.text(this.x * width + offs,
-				    this.y * width + offs, "");
-    this.circle.attr("stroke", "#000000");
-    this.numText.attr("font-size", 13);
-    this.circle.hide();
-    this.numText.hide();
-    this.isInit = true;
-}
+FieldPoint.prototype.setState = function(state) {
+    if(this.state != FpState.EMPTY && state != FpState.EMPTY &&
+       !this.mouseover) {
+	console.log("warning: nonempty setState");
+    }
+    this.state = state;
+    if(this.image != null) this.image.remove();
+    this.image = null;
 
-FieldPoint.prototype.putStone = function(color, moveNumber) {
-    if(!this.isInit) this.init();
-    if(this.state == 0 || this.state == 3) {
-	if(color == 1) {
-	    this.circle.attr("fill", "#000000");
-	    this.numText.attr("fill", "#ffffff");
-	}
-	if(color == 2) {
-	    this.circle.attr("fill", "#ffffff");
-	    this.numText.attr("fill", "#000000");
-	}
-	this.circle.attr("fill-opacity", 1.0);
-	this.circle.attr("stroke-opacity", 1.0);
-	this.circle.attr("stroke-width", 1);
-	this.numText.attr("text", moveNumber);
-	this.state = color;
-	this.circle.show();
-	if(numbersVisible) this.numText.show();
-    } else {
-	console.log("fieldpoint [" + this.x + " " + this.y + "] taken");
+    switch(this.state) {
+    case FpState.EMPTY: break;
+    case FpState.BLACK:
+	this.image = boardcanvas.circle(this.x * width + offs,
+					this.y * width + offs, stoneRadius);
+	this.image.attr("stroke", "#000000");
+	this.image.attr("fill", "#000000");
+	break;
+    case FpState.WHITE:
+    	this.image = boardcanvas.circle(this.x * width + offs,
+					this.y * width + offs, stoneRadius);
+	this.image.attr("stroke", "#000000");
+	this.image.attr("fill", "#ffffff");
+	break;
     }
 }
 
-FieldPoint.prototype.removeStone = function() {
-    if(this.state == 1 || this.state == 2) {
-	this.circle.hide();
-	this.numText.hide();
-	this.state = 0;
-	this.toRemove = false;
-    } else {
-	console.log("fieldpoint [" + this.x + " " + this.y + "] empty");
-    }
+FieldPoint.prototype.setOverlayState = function(state) {
+
+}
+
+FieldPoint.prototype.isFree = function() {
+    return this.mouseover || this.state == FpState.EMPTY;
 }
 
 FieldPoint.prototype.clearField = function() {
-    if(this.isInit) {
-	this.circle.hide();
-	this.numText.hide();
-    }
-    this.state = 0;
+    this.setState(FpState.EMPTY);
+    this.mouseover = false;
     this.toRemove = false;
 }
 
-FieldPoint.prototype.toggleText = function() {
-    if(!this.isInit) return;
-    if(numbersVisible && (this.state == 1 || this.state == 2)) {
-	this.numText.show();
-    } else {
-	this.numText.hide();
-    }
-}
-
-FieldPoint.prototype.showMouseover = function() {
-    if(!this.isInit) this.init();
-    if(this.state == 0) {
-	if(getCurrentColor() == 1) this.circle.attr("fill", "#000000");
-	if(getCurrentColor() == 2) this.circle.attr("fill", "#ffffff");
-	this.circle.attr("fill-opacity", 0.6);
-	this.circle.attr("stroke-opacity", 0.6);
-	this.circle.show();
-	this.state = 3;
-    }
-    if(this.state == 3) {
-	if(getCurrentColor() == 1) this.circle.attr("fill", "#000000");
-	if(getCurrentColor() == 2) this.circle.attr("fill", "#ffffff");
+FieldPoint.prototype.showMouseover = function(mstate) {
+    if(this.state == FpState.EMPTY) {
+	this.setState(mstate);
+	this.image.attr("stroke-opacity", 0.6);
+	this.image.attr("fill-opacity", 0.6);
+	this.mouseover = true;
     }
 }
 
 FieldPoint.prototype.hideMouseover = function() {
-    if(this.state == 3) {
-	this.state = 0;
-	this.circle.hide();
+    if(this.mouseover) {
+	this.setState(FpState.EMPTY);
+	this.mouseover = false;
     }
 }
 
@@ -364,7 +372,7 @@ var go = function(fp, gr, lib) {
     fp.gmarked = true;
     gr.push(fp);
     for(var i = 0; i < nei.length; i++) {
-	if(nei[i].state == 0 || nei[i].toRemove) {
+	if(nei[i].state == FpState.EMPTY || nei[i].toRemove) {
 	    lib++;
 	    nei[i].fmarked = true;
 	} else if(nei[i].state == fp.state) {
@@ -525,9 +533,9 @@ TreeNode.prototype.playMove = function(reversed) {
 	if(move.action == 2) return; //passmove
 	if(reversed != (move.action == 0)) {
 	    board[move.position[0]][move.position[1]].
-		putStone(move.color, this.moveNumber);
+		setState(move.color);
 	} else {
-	    board[move.position[0]][move.position[1]].removeStone();
+	    board[move.position[0]][move.position[1]].setState(FpState.EMPTY);
 	}
     }
 }
