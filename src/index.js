@@ -1,3 +1,42 @@
+Tools = {
+    PLAY: 0,
+    BLACK: 1,
+    WHITE: 2,
+    ALPHA: 3,
+    NUM: 4,
+    CIRC: 5,
+    QUAD: 6,
+    TRI: 7,
+    REM: 8
+};
+FpState = {
+    EMPTY: 0,
+    BLACK: 1,
+    WHITE: 2,
+    ALPHA: 3,
+    NUM: 4,
+    CIRC: 5,
+    QUAD: 6,
+    TRI: 7,
+    MOVENUM: 8
+};
+NodeType = {
+    BLACK: 1,
+    WHITE: 2,
+    ALPHA: 3,
+    NUM: 4,
+    CIRC: 5,
+    QUAD: 6,
+    TRI: 7,
+    BLACKREM: 8,
+    WHITEREM: 9
+}
+ActionType = {
+    PUT: 0,
+    REM: 1,
+    PASS: 2
+}
+
 $(function() {
     treeDim = [326, 135];
     boardcanvas = Raphael("board-canvas", 401, 401);
@@ -18,12 +57,12 @@ $(function() {
     treePaths = new Array();
 
     board = new Array(dimX);
-    gameTree = new TreeNode(null, currentMove, true, null);
+    gameTree = new TreeNode([], currentMove, true, null);
     currentTreePos = gameTree;
     currentTreePosMarker = treecanvas.rect(0, 0, treeRadius * 2 + 2,
 					   treeRadius * 2 + 2);
     currentTreePosMarker.attr("fill", "#ff0000");
-    currentTreePosMarker.attr("fill-opacity", 0.45);
+    currentTreePosMarker.attr("fill-opacity", 0.4);
     currentTreePosMarker.attr("stroke-width", 0);
     currentTreePosMarker.hide();
 
@@ -64,152 +103,161 @@ $(function() {
 	var x = coord[0];
 	var y = coord[1];
 
-	// needs change for layover
-	if(!board[x][y].isFree()) return;
-
-	var oldState = board[x][y].state;
-
-	//simulate move
-	board[x][y].state = getCurrentColor();
-	//get potentially dead groups
-	var neigh = board[x][y].getNeighbours().filter(
-	    function(f) { return oppositeState(board[x][y], f); });
-	var deadGroups = new Array();
-	for(var i = 0; i < neigh.length; i++) {
-	    var group = neigh[i].getGroup();
-	    if(group.liberties == 0) deadGroups.push(group);
+	switch(currentTool) {
+	case Tools.PLAY:
+	    play(x, y);
+	    break;
+	case Tools.BLACK:
+	    putStone(x, y, NodeType.BLACK);
+	    break;
+	case Tools.WHITE:
+	    putStone(x, y, NodeType.WHITE);
+	    break;
 	}
-	for(var i = 0; i < deadGroups.length; i++) {
-	    for(var j = 0; j < deadGroups[i].stones.length; j++) {
-		deadGroups[i].stones[j].toRemove = true;
-	    }
-	}
-	//get liberties with potentially dead groups removed
-	var group = board[x][y].getGroup();
-	//if still 0 liberties invalid move
-	if(group.liberties == 0) {
-	    //invalid move
-	    console.log("invalid move");
-	    board[x][y].state = oldState;
-	    //undo removal
-	    for(var i = 0; i < deadGroups.length; i++) {
-		for(var j = 0; j < deadGroups[i].stones.length; j++) {
-		    deadGroups[i].stones[j].toRemove = false;
-		}
-	    }
-	    return;
-	}
-	//move is valid
-	var act = new NodeAction(ActionType.PUT, getCurrentColor(), [x, y]);
-	board[x][y].state = oldState;
-	//check if a child of currentTreePos is this move
-	if(currentTreePos.children.length > 0) {
-	    for(var i = 0; i < currentTreePos.children.length; i++) {
-		if(actionsEq(currentTreePos.children[i].actions[0], act)) {
-		    //move already exists
-		    currentTreePos.children[i].applyNode(false);
-		    currentTreePos = currentTreePos.children[i];
-		    drawTree();
-		    currentMove++;
-		    return;
-		}
-	    }
-	}
-	//move did not exist
-	board[x][y].setState(getCurrentColor());
-	board[x][y].mouseover = false;
-	var actions = new Array();
-	actions.push(act);
-	for(var i = 0; i < board.length; i++) {
-	    for(var j = 0; j < board[i].length; j++) {
-		if(board[i][j].toRemove) {
-		    moves.push(new Move(board[i][j], 1));
-		    board[i][j].setState(FpState.EMPTY);
-		}
-	    }
-	}
-	currentTreePos = currentTreePos.addChild(actions, currentMove + 1);
-	drawTree();
-	currentMove++;
     });
     $(document).on("keyup", function(e) {
-	if(e.keyCode == 66) {
-	    if(currentTreePos.isRoot) return;
-	    currentTreePos.applyNode(true);
-	    currentTreePos = currentTreePos.parent;
-	    drawTree();
-	    currentMove--
-	    if(lastMO != null) {
-		board[lastMO[0]][lastMO[1]].
-		    showMouseover(mouseoverToolToState());
+	if(e.keyCode == 66) goBackward();
+	if(e.keyCode == 70) goForward();
+	if(e.keyCode == 80) pass();
+	if(e.keyCode == 78) toggleNumbersVisible();
+	if(e.keyCode == 83) console.log(writeSgf());
+    });
+});
+
+play = function(x, y) {
+    if(!board[x][y].isFree()) return;
+
+    var oldState = board[x][y].state;
+
+    //simulate move
+    board[x][y].state = getCurrentColor();
+    //get potentially dead groups
+    var neigh = board[x][y].getNeighbours().filter(
+	function(f) { return haveOppositeState(board[x][y], f); });
+    var deadGroups = new Array();
+    for(var i = 0; i < neigh.length; i++) {
+	var group = neigh[i].getGroup();
+	if(group.liberties == 0) deadGroups.push(group);
+    }
+    for(var i = 0; i < deadGroups.length; i++) {
+	for(var j = 0; j < deadGroups[i].stones.length; j++) {
+	    deadGroups[i].stones[j].toRemove = true;
+	}
+    }
+    //get liberties with potentially dead groups removed
+    var group = board[x][y].getGroup();
+    //if still 0 liberties invalid move
+    if(group.liberties == 0) {
+	//invalid move
+	console.log("invalid move");
+	board[x][y].state = oldState;
+	//undo removal
+	for(var i = 0; i < deadGroups.length; i++) {
+	    for(var j = 0; j < deadGroups[i].stones.length; j++) {
+		deadGroups[i].stones[j].toRemove = false;
 	    }
 	}
-	if(e.keyCode == 70) {
-	    if(currentTreePos.children.length > 0) {
-		currentTreePos = currentTreePos.children[0];
-		currentTreePos.applyNode(false);
+	return;
+    }
+    //move is valid
+    var act = new NodeAction(ActionType.PUT, getCurrentColor(), [x, y]);
+    board[x][y].state = oldState;
+    //check if a child of currentTreePos is this move
+    if(currentTreePos.children.length > 0) {
+	for(var i = 0; i < currentTreePos.children.length; i++) {
+	    if(actionsEq(currentTreePos.children[i].actions[0], act)) {
+		//move already exists
+		currentTreePos.children[i].applyNode(false);
+		currentTreePos = currentTreePos.children[i];
 		drawTree();
 		currentMove++;
+		return;
+	    }
+	}
+    }
+    //move did not exist
+    board[x][y].setState(getCurrentColor());
+    board[x][y].mouseover = false;
+    var actions = new Array();
+    actions.push(act);
+    for(var i = 0; i < board.length; i++) {
+	for(var j = 0; j < board[i].length; j++) {
+	    if(board[i][j].toRemove) {
+		actions.push(new NodeAction(ActionType.REM,
+					    getOppositeCurrentColor(),
+					    [i, j]));
+		board[i][j].setState(FpState.EMPTY);
+		board[i][j].toRemove = false;
+	    }
+	}
+    }
+    currentTreePos = currentTreePos.addChild(actions, currentMove + 1);
+    drawTree();
+    currentMove++;
+}
+
+pass = function() {
+    var acts = [new NodeAction(ActionType.PASS, getCurrentColor(), [])];
+    currentTreePos = currentTreePos.addChild(acts, currentMove + 1);
+    drawTree();
+    currentMove++;
+}
+
+putStone = function(x, y, color) {
+    if(!board[x][y].isFree()) {
+	if(board[x][y].stoneRemovable != FpState.EMPTY) {
+	    var act = new NodeAction(ActionType.REM,
+				     board[x][y].stoneRemovable + 7, [x,y]);
+	    currentTreePos.actions.push(act);
+	    if(board[x][y].stoneRemovable != color) {
+		var nact = new NodeAction(ActionType.PUT, color + 7, [x,y]);
+		currentTreePos.actions.push(nact);
+		board[x][y].setState(color);
+		board[x][y].mouseover = false;
+		board[x][y].stoneRemovable = color;
+	    } else {
+		board[x][y].setState(FpState.EMPTY);
+		board[x][y].stoneRemovable = FpState.EMPTY;
 		if(lastMO != null) {
 		    board[lastMO[0]][lastMO[1]].
 			showMouseover(mouseoverToolToState());
 		}
 	    }
+	} else {
+	    return;
 	}
-	if(e.keyCode == 80) {
-	    var acts = [new NodeAction(ActionType.PASS,
-				       getCurrentColor(), [])];
-	    currentTreePos = currentTreePos.addChild(acts, currentMove + 1);
-	    drawTree();
-	    currentMove++;1
-	}
-	if(e.keyCode == 78) {
-	    toggleNumbersVisible();
-	}
-	if(e.keyCode == 83) {
-	    console.log(writeSgf());
-	}
-    });
-});
-
-Tools = {
-    PLAY: 0,
-    BLACK: 1,
-    WHITE: 2,
-    ALPHA: 3,
-    NUM: 4,
-    CIRC: 5,
-    QUAD: 6,
-    TRI: 7,
-    REM: 8
-};
-
-FpState = {
-    EMPTY: 0,
-    BLACK: 1,
-    WHITE: 2,
-    ALPHA: 3,
-    NUM: 4,
-    CIRC: 5,
-    QUAD: 6,
-    TRI: 7,
-    MOVENUM: 8
-};
-
-NodeType = {
-    BLACK: 1,
-    WHITE: 2,
-    ALPHA: 3,
-    NUM: 4,
-    CIRC: 5,
-    QUAD: 6,
-    TRI: 7,
+    } else {
+	var act = new NodeAction(ActionType.PUT, color + 7, [x,y]);
+	currentTreePos.actions.push(act);
+	board[x][y].setState(color);
+	board[x][y].mouseover = false;
+	board[x][y].stoneRemovable = color;
+    }
+    currentTreePos.simplifyActions();
 }
 
-ActionType = {
-    PUT: 0,
-    REM: 1,
-    PASS: 2
+goForward = function() {
+    if(currentTreePos.children.length > 0) {
+	currentTreePos = currentTreePos.children[0];
+	currentTreePos.applyNode(false);
+	drawTree();
+	currentMove++;
+	if(lastMO != null) {
+	    board[lastMO[0]][lastMO[1]].
+		showMouseover(mouseoverToolToState());
+	}
+    }
+}
+
+goBackward = function() {
+    if(currentTreePos.isRoot) return;
+    currentTreePos.applyNode(true);
+    currentTreePos = currentTreePos.parent;
+    drawTree();
+    currentMove--
+    if(lastMO != null) {
+	board[lastMO[0]][lastMO[1]].showMouseover(mouseoverToolToState());
+    }
 }
 
 mouseoverToolToState = function() {
@@ -221,9 +269,8 @@ mouseoverToolToState = function() {
     return currentTool;
 }
 
-getCurrentColor = function() {
-    return currentMove % 2 + 1;
-}
+getCurrentColor = function() { return currentMove % 2 + 1; }
+getOppositeCurrentColor = function() { return (currentMove + 1) % 2 + 1; }
 
 resetBoard = function() {
     for(var i = 0; i < board.length; i++) {
@@ -250,9 +297,9 @@ mouseToIndex = function(mx, my) {
     return [x, y];
 }
 
-oppositeState = function(fp1, fp2) {
-    if(fp1.state == 1 && fp2.state == 2) return true;
-    if(fp1.state == 2 && fp2.state == 1) return true;
+haveOppositeState = function(fp1, fp2) {
+    if(fp1.state == FpState.BLACK && fp2.state == FpState.WHITE) return true;
+    if(fp1.state == FpState.WHITE && fp2.state == FpState.BLACK) return true;
     return false;
 }
 
@@ -287,6 +334,8 @@ FieldPoint = function(x, y) {
 
     this.mouseover = false;
     this.image = null;
+
+    this.stoneRemovable = FpState.EMPTY;
 
     // For capture logic
     this.gmarked = false;
@@ -328,6 +377,7 @@ FieldPoint.prototype.clearField = function() {
     this.setState(FpState.EMPTY);
     this.mouseover = false;
     this.toRemove = false;
+    this.stoneRemovable = FpState.EMPTY;
 }
 
 FieldPoint.prototype.showMouseover = function(mstate) {
@@ -434,6 +484,7 @@ TreeNode = function(actions, moveNumber, isRoot, parent) {
     } else {
 	this.circle.attr("r", treeRadius - 2);
 	this.circle.attr("fill", "#884444");
+	this.numText.attr("text", "");
     }
     this.circle.mC = treecanvas.circle(0, 0, treeRadius + 2);
     this.circle.mC.attr("stroke-width", 1);
@@ -543,12 +594,24 @@ TreeNode.prototype.applyNode = function(reversed) {
     if(this.isRoot) return;
     for(var i = 0; i < this.actions.length; i++) {
 	var action = this.actions[i];
+	var x = action.pos[0];
+	var y = action.pos[1];
 	if(action.actionType == ActionType.PASS) continue;
 	if(reversed != (action.actionType == ActionType.PUT)) {
-	    board[action.pos[0]][action.pos[1]].setState(action.nodeType);
-	    board[action.pos[0]][action.pos[1]].mouseover = false;
+	    if(action.nodeType > 7) {
+		board[x][y].stoneRemovable = action.nodeType - 7;
+		board[x][y].setState(action.nodeType - 7);
+		board[x][y].mouseover = false;
+	    } else {
+		board[x][y].setState(action.nodeType);
+		board[x][y].mouseover = false;
+	    }
 	} else {
-	    board[action.pos[0]][action.pos[1]].setState(FpState.EMPTY);
+	    if(action.nodeType > 7) {
+		board[x][y].stoneRemovable = FpState.EMPTY;
+	    }
+	    board[x][y].mouseover = false;
+	    board[x][y].setState(FpState.EMPTY);
 	}
     }
 }
@@ -573,11 +636,52 @@ TreeNode.prototype.searchFor = function(node) {
     return null;
 }
 
+TreeNode.prototype.simplifyActions = function() {
+    var simplified = [];
+    for(var i = 0; i < this.actions.length; i++) {
+	this.actions[i].smarked = false;
+    }
+    for(var i = 0; i < this.actions.length; i++) {
+	if(this.actions[i].smarked) continue;
+
+	var candidates = [this.actions[i]]
+	for(var j = 0; j < this.actions.length; j++) {
+	    if(i == j) continue;
+	    if(possibleRedundant(this.actions[i], this.actions[j])) {
+		candidates.push(this.actions[j]);
+		this.actions[j].smarked = true;
+	    }
+	}
+	if(candidates.length == 1) {
+	    simplified.push(candidates[0]);
+	} else {
+	    var sum = 0;
+	    for(var k = 0; k < candidates.length; k++) {
+		if(candidates[k].actionType == ActionType.PUT) sum += 1;
+		else sum -= 1;
+	    }
+	    if(sum > 0) {
+		simplified.push(new NodeAction(ActionType.PUT,
+					       candidates[0].nodeType,
+					       candidates[0].pos));
+	    }
+	}
+    }
+    this.actions = simplified;
+}
+
+possibleRedundant = function(a1, a2) {
+    return a1.pos[0] == a2.pos[0] && a1.pos[1] == a2.pos[1] &&
+	a1.nodeType == a2.nodeType;
+}
 
 NodeAction = function(actionType, nodeType, pos) {
     this.actionType = actionType;
     this.nodeType = nodeType;
     this.pos = pos;
+
+    //for simplify
+    this.smarked = false;
     return this;
 }
 
@@ -633,9 +737,26 @@ addTools = function() {
 }
 
 toolButtonPress = function(buttonId) {
-    console.log(buttonId);
+    switch(buttonId) {
+    case "bpass": pass(); break;
+    case "bshow": toggleNumbersVisible(); break;
+    case "bbw": goBackward(); break;
+    case "bfw": goForward(); break;
+    case "bbww": {
+	for(var i = 0; i < 5; i++) goBackward();
+	break;
+    }
+    case "bfww": {
+	for(var i = 0; i < 5; i++) goForward();
+	break;
+    }
+    }
 }
 
 toolSelectPress = function(buttonId) {
-    console.log(buttonId);
+    switch(buttonId) {
+    case "tplay": currentTool = Tools.PLAY; break;
+    case "tblack": currentTool = Tools.BLACK; break;
+    case "twhite": currentTool = Tools.WHITE; break;
+    }
 }
