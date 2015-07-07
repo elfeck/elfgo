@@ -99,6 +99,12 @@ $(function() {
 	    board[coord[0]][coord[1]].showMouseover(mouseoverToolToState());
 	}
     });
+    $("#board-canvas").on("mouseleave", function(e) {
+	if(lastMO != null) {
+	    board[lastMO[0]][lastMO[1]].hideMouseover(FpState.EMPTY)
+	    lastMO = null;
+	}
+    });
     $("#board-canvas").on("mouseup", function(e) {
 	var mx = offsetMouse(this, e)[0];
 	var my = offsetMouse(this, e)[1];
@@ -107,23 +113,10 @@ $(function() {
 	var x = coord[0];
 	var y = coord[1];
 
-	switch(currentTool) {
-	case Tools.PLAY:
-	    play(x, y);
-	    break;
-	case Tools.BLACK:
-	    putStone(x, y, NodeType.BLACK);
-	    break;
-	case Tools.WHITE:
-	    putStone(x, y, NodeType.WHITE);
-	    break;
-	case Tools.ALPHA:
-	    putLabel(x, y, Tools.ALPHA);
-	    break;
-	case Tools.NUM:
-	    putLabel(x, y, Tools.NUM);
-	    break;
-	}
+	if(currentTool == Tools.PLAY) play(x, y);
+	if(currentTool == Tools.BLACK || currentTool == Tools.WHITE)
+	    putStone(x, y, currentTool);
+	if(currentTool > 2 && currentTool <= 7) putLabel(x, y, currentTool);
     });
     $(document).on("keyup", function(e) {
 	if(e.keyCode == 66) goBackward();
@@ -188,6 +181,7 @@ play = function(x, y) {
 	}
     }
     //move did not exist
+    resetLabels();
     board[x][y].setState(getCurrentColor());
     board[x][y].mouseover = false;
     var actions = new Array();
@@ -206,7 +200,6 @@ play = function(x, y) {
     currentTreePos = currentTreePos.addChild(actions, currentMove + 1);
     drawTree();
     currentMove++;
-    resetLabels();
 }
 
 pass = function() {
@@ -255,13 +248,15 @@ putLabel = function(x, y, type) {
 	var act = new NodeAction(ActionType.REM, board[x][y].overlayState,
 				 [x,y]);
 	currentTreePos.actions.push(act);
+	toggleLabelTool(board[x][y].overlayState,
+			board[x][y].overlayInfo, false);
 	if(board[x][y].overlayState == type) {
-	    freeLabelTool(type, board[x][y].overlayInfo);
 	    board[x][y].setOverlayState(FpState.EMPTY);
 	    if(lastMO != null) {
 		board[lastMO[0]][lastMO[1]].
 		    showMouseover(mouseoverToolToState());
 	    }
+	    currentTreePos.simplifyActions();
 	    return;
 	}
     }
@@ -269,10 +264,12 @@ putLabel = function(x, y, type) {
     currentTreePos.actions.push(act);
     if(type == FpState.ALPHA) {
 	var info = labelToolInfo(type);
+	act.info = info;
 	takeFirst(alphas);
 	board[x][y].setOverlayState(type, info);
     } else if(type == FpState.NUM) {
 	var info = labelToolInfo(type);
+	act.info = info;
 	takeFirst(nums);
 	board[x][y].setOverlayState(type, info);
     } else {
@@ -352,12 +349,12 @@ takeFirst = function(array) {
     }
 }
 
-freeLabelTool = function(tool, ele) {
+toggleLabelTool = function(tool, ele, t) {
     if(tool == Tools.ALPHA) {
-	alphas[ele.charCodeAt(0) - 65] = false;
+	alphas[ele.charCodeAt(0) - 65] = t;
     }
     if(tool == Tools.NUM) {
-	nums[ele - 1] = false;
+	nums[ele - 1] = t;
     }
 }
 
@@ -374,6 +371,8 @@ resetLabels = function() {
     for(var i = 0; i < board.length; i++) {
 	for(var j = 0; j < board[i].length; j++) board[i][j].clearLabel();
     }
+    alphas.fill(false);
+    nums.fill(false);
 }
 
 drawTree = function() {
@@ -463,6 +462,9 @@ FieldPoint.prototype.setState = function(state) {
 	this.image.attr("fill", "#000000");
 	if(this.overlayState != FpState.EMPTY) {
 	    this.overlayImage.attr("fill", "#ffffff");
+	    if(this.overlayState > 4) {
+		this.overlayImage.attr("stroke", "#ffffff");
+	    }
 	}
 	this.image.toBack();
 	break;
@@ -482,15 +484,12 @@ FieldPoint.prototype.setOverlayState = function(state, info) {
     this.overlayImage = null;
     this.overlayInfo = null;
     switch(this.overlayState) {
-    case FpState.EMPTY: break;
+    case FpState.EMPTY: return;
     case FpState.ALPHA:
 	this.overlayInfo = info;
 	this.overlayImage = boardcanvas.
 	    text(this.x * width + offs, this.y * width + offs, info);
 	this.overlayImage.attr("font-size", 18);
-	if(this.state == FpState.BLACK) {
-	    this.overlayImage.attr("fill", "#ffffff");
-	}
 	break;
     case FpState.NUM:
 	this.overlayInfo = info;
@@ -498,10 +497,39 @@ FieldPoint.prototype.setOverlayState = function(state, info) {
 					     this.y * width + offs,
 					     info);
 	this.overlayImage.attr("font-size", 18);
-	if(this.state == FpState.BLACK) {
-	    this.overlayImage.attr("fill", "#ffffff");
-	}
 	break;
+    case FpState.CIRC:
+	this.overlayImage = boardcanvas.circle(this.x * width + offs,
+					       this.y * width + offs,
+					       stoneRadius - 4);
+	this.overlayImage.attr("fill-opacity", 0);
+	this.overlayImage.attr("stroke-width", 2);
+	break;
+    case FpState.QUAD:
+	var s = Math.sqrt(2);
+	this.overlayImage = boardcanvas.rect(this.x * width + offs - 4.6,
+					     this.y * width + offs - 4.6,
+					     (stoneRadius - 4.5) * 2,
+					     (stoneRadius - 4.5) * 2);
+	this.overlayImage.attr("fill-opacity", 0);
+	this.overlayImage.attr("stroke-width", 2);
+	break;
+    case FpState.TRI:
+	var p1 = [this.x * width + offs, this.y * width + offs];
+	var p2 = [this.x * width + offs + (stoneRadius - 3) * 2,
+		  this.y * width + offs];
+	var p3 = [this.x * width + offs + (stoneRadius - 3),
+		  this.y * width + offs - stoneRadius - 2];
+	this.overlayImage = boardcanvas.path("M" + p1[0] + "," + p1[1] + "," +
+					     p2[0] + "," + p2[1] + "," +
+					     p3[0] + "," + p3[1] + "z");
+	this.overlayImage.transform("t-6,4.5");
+	this.overlayImage.attr("fill-opacity", 0);
+	this.overlayImage.attr("stroke-width", 2);
+    }
+    if(this.state == FpState.BLACK) {
+	this.overlayImage.attr("fill", "#ffffff");
+	this.overlayImage.attr("stroke", "#ffffff");
     }
 }
 
@@ -535,8 +563,6 @@ FieldPoint.prototype.showMouseover = function(mstate) {
 	if(this.overlayImage != FpState.EMPTY) this.image.toBack();
     } else if(mstate >= 3 && this.overlayState == FpState.EMPTY) {
 	this.setOverlayState(mstate);
-	this.overlayImage.attr("stroke-opacity", 0.9);
-	this.overlayImage.attr("fill-opacity", 0.9);
 	if(mstate == FpState.ALPHA) {
 	    this.overlayImage.attr("text", labelToolInfo(mstate));
 	}
@@ -550,6 +576,12 @@ FieldPoint.prototype.showMouseover = function(mstate) {
 FieldPoint.prototype.hideMouseover = function() {
     if(this.mouseover) {
 	this.setState(FpState.EMPTY);
+	if(this.overlayState != FpState.EMPTY) {
+	    this.overlayImage.attr("fill", "#000000");
+	    if(this.overlayState >= 5) {
+		this.overlayImage.attr("stroke", "#000000");
+	    }
+	}
 	this.mouseover = false;
     }
     if(this.lmouseover) {
@@ -787,8 +819,12 @@ TreeNode.prototype.applyLabels = function() {
 	var y = action.pos[1];
 	if(action.actionType == ActionType.PASS) continue;
 	if(action.nodeType > 2 && action.nodeType <= 7) {
-	    board[x][y].setOverlayState(action.nodeType);
+	    board[x][y].setOverlayState(action.nodeType, action.info);
 	    board[x][y].lmouseover = false;
+	    if(action.nodeType == NodeType.ALPHA
+	       || action.nodeType == NodeType.NUM) {
+		toggleLabelTool(action.nodeType, action.info, true);
+	    }
 	}
     }
 }
@@ -833,14 +869,21 @@ TreeNode.prototype.simplifyActions = function() {
 	    simplified.push(candidates[0]);
 	} else {
 	    var sum = 0;
+	    var lastinfo = null;
 	    for(var k = 0; k < candidates.length; k++) {
-		if(candidates[k].actionType == ActionType.PUT) sum += 1;
-		else sum -= 1;
+		if(candidates[k].actionType == ActionType.PUT) {
+		    sum += 1;
+		    lastinfo = candidates[k].info;
+		} else {
+		    sum -= 1;
+		}
 	    }
 	    if(sum > 0) {
-		simplified.push(new NodeAction(ActionType.PUT,
-					       candidates[0].nodeType,
-					       candidates[0].pos));
+		var saction = new NodeAction(ActionType.PUT,
+					     candidates[0].nodeType,
+					     candidates[0].pos);
+		saction.info = lastinfo;
+		simplified.push(saction);
 	    }
 	}
     }
@@ -935,5 +978,8 @@ toolSelectPress = function(buttonId) {
     case "twhite": currentTool = Tools.WHITE; break;
     case "talph": currentTool = Tools.ALPHA; break;
     case "tnum": currentTool = Tools.NUM; break;
+    case "tcirc": currentTool = Tools.CIRC; break;
+    case "tquad": currentTool = Tools.QUAD; break;
+    case "ttri": currentTool = Tools.TRI; break;
     }
 }
