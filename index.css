@@ -16,12 +16,15 @@ body {
     background-color: #dddddd;
 }
 div#board-canvas {
+    background-color: #fffcf6;
+    border-width: 2px;
+    border-style: solid;
+    border-color: #888888;
     display: inline-block;
-    width: 401px;
-    height: 401px;
-    background-image: url("img/19_board.svg");
+    width: 400px;
+    height: 400px;
     margin-top: 20px;
-    margin-left: 12px;
+    margin-left: 20px;
     margin-bottom: 20px;
     cursor: pointer;
 }
@@ -31,8 +34,8 @@ div#tree-canvas {
     border-style: solid;
     border-color: #888888;
     display: inline-block;
-    width: 361px;
-    height: 150px;
+    width: 344px;
+    height: 180px;
     overflow: auto;
     cursor: pointer;
 }
@@ -42,8 +45,8 @@ div#tools {
     border-style: solid;
     border-color: #888888;
     display: inline-block;
-    width: 361px;
-    height: 30px;
+    width: 344px;;
+    height: 57px;
     margin-top: 5px;
 }
 div#all-container {
@@ -51,9 +54,10 @@ div#all-container {
 }
 div#side-container {
     display: inline-block;
-    width: 369px;
+    width: 344px;
     margin-top: 20px;
     margin-left: 10px;
+    margin-right: 20px;
     vertical-align: top;
 }
 div.toolstool {
@@ -68,16 +72,21 @@ div.toolstool {
     background-position: center;
 }
 div#bpass {
-    margin-left: 4px;
+    margin-left: 10px;
     background-image: url("img/bpass.svg");
 }
+div#bshow {
+    background-image: url("img/bshow.svg");
+}
 div#trem {
+    margin-left: 10px;
     background-image: url("img/trem.svg");
 }
 div#talph {
     background-image: url("img/talph.svg");
 }
 div#bbw {
+    margin-left: 4px;
     background-image: url("img/bbw.svg");
 }
 div#bbww {
@@ -96,6 +105,7 @@ div#twhite {
     background-image: url("img/twhite.svg");
 }
 div#tnum {
+    margin-left: 10px;
     background-image: url("img/tnum.svg");
 }
 div#tcirc {
@@ -108,11 +118,16 @@ div#tquad {
     background-image: url("img/tquad.svg");
 }
 div#tplay {
-    margin-left: 10px;
+    margin-left: 4px;
     background-image: url("img/tplay.svg");
 }
-div#bshow {
-    background-image: url("img/bshow.svg");
+div#tcross {
+    background-image: url("img/tcross.svg");
+}
+div#placeholder {
+    display: inline-block;
+    width: 180px;
+    height: 17px;
 }
 div.buttonidle {
     padding: 1px;
